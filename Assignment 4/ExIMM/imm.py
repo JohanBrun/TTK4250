@@ -67,9 +67,8 @@ class IMM(Generic[MT]):
         # mix_probabilities[s] is the mixture weights for mode s
         """Calculate the predicted mode probability and the mixing probabilities."""
 
-        predicted_mode_probabilities, mix_probabilities = (
-            None,
-            None,
+        predicted_mode_probabilities, mix_probabilities = discretebayes.discrete_bayes(
+            immstate.weights, self.PI
         )  # TODO hint: discretebayes.discrete_bayes
 
         # Optional assertions for debugging

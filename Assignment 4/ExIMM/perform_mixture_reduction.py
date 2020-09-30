@@ -6,10 +6,8 @@ from mixturereduction import gaussian_mixture_moments
 
 # %% setup and show initial
 # TODO: fill in values
-mus = np.array([0, 2, 4.5]).reshape(3, 1)
-sigmas = np.array([1, 1, 1]).reshape(
-    3, 1, 1
-)  # note std and not var as in gaussian_mixture_moments
+mus = np.array([0, 0, 2.5]).reshape(3, 1)
+sigmas = np.array([1, 1.5, 1.5]).reshape(3, 1, 1)  # note std and not var as in gaussian_mixture_moments
 w = np.array([1/3, 1/3, 1/3])
 w = w.ravel() / np.sum(w)
 assert np.allclose(w.sum(), 1), "weights must sum to one"
@@ -60,7 +58,7 @@ for i in range(2):  # index of first to merge
         ax2.plot(x, pdf_mix_comb_vals[k], label=f"combining {i} {j}")
         k += 1
 
-ax2.legend(loc=(1.05, 0))
+ax2.legend(loc=(1.0, 0))
 
 print(mucomb)
 print(sigma2comb)
