@@ -29,6 +29,8 @@ from scipy.special import logsumexp
 
 # local
 import discretebayes
+import ekf
+import ekf_init_filter_state
 
 # %% TypeVar and aliases
 MT = TypeVar("MT")  # a type variable to be the mode type
@@ -85,7 +87,9 @@ class IMM(Generic[MT]):
         mix_probabilities: np.ndarray,
     ) -> List[MT]:
 
-        mixed_states = # TODO
+        mixed_states = [
+            fs.reduce_mixture()
+        ] # TODO
         return mixed_states
 
     def mode_matched_prediction(

@@ -50,7 +50,7 @@ class CartesianPosition:
         # x[0:2] is position
         # you do not need to care about sensor_state
         # if you need the size of the state dimension it is in self.state_dim
-        return np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
+        return np.eye(self.m, self.state_dim)
 
     def R(self,
             x: np.ndarray,
@@ -62,4 +62,4 @@ class CartesianPosition:
         # TODO
         # you do not need to care about sensor_state
         # sigma is available as self.sigma, and @dataclass makes it available in the init class constructor
-        return self.sigma * np.eye(2)
+        return self.sigma**2 * np.eye(2)
