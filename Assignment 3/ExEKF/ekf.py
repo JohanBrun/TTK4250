@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 import numpy as np
 import scipy.linalg as la
 import scipy
-import math
 
 # local
 import dynamicmodels as dynmods
@@ -54,7 +53,7 @@ class EKF:
         Q = self.dynamic_model.Q(x, Ts)
 
         x_pred = self.dynamic_model.f(x, Ts)  # TODO
-        P_pred = F @ P @ F.T + Q # TODO
+        P_pred = F @ P @ F.T + Q  # TODO
 
         state_pred = GaussParams(x_pred, P_pred)
 
@@ -91,6 +90,7 @@ class EKF:
         R = self.sensor_model.R(x, sensor_state=sensor_state, z=z)
 
         S = H @ P @ H.T + R  # TODO the innovation covariance
+
         return S
 
     def innovation(self,
@@ -102,8 +102,8 @@ class EKF:
         """Calculate the innovation for ekfstate at z in sensor_state."""
 
         # TODO: reuse the above functions for the innovation and its covariance
-        v = self.innovation_mean(z, ekfstate)
-        S = self.innovation_cov(z, ekfstate)
+        v = self.innovation_mean(z, ekfstate, sensor_state=sensor_state)
+        S = self.innovation_cov(z, ekfstate, sensor_state=sensor_state)
 
         innovationstate = GaussParams(v, S)
 
@@ -143,7 +143,7 @@ class EKF:
 
         # TODO: resue the above functions
         ekfstate_pred = self.predict(ekfstate, Ts)  # TODO
-        ekfstate_upd = self.update(z, ekfstate_pred)  # TODO
+        ekfstate_upd = self.update(z, ekfstate_pred, sensor_state=sensor_state)  # TODO
         return ekfstate_upd
 
     def NIS(self,
@@ -171,7 +171,7 @@ class EKF:
         x, P = ekfstate
 
         x_diff = x - x_true  # Optional step
-        NEES = x_diff.T @ la.inv(P) @ x_diff  # TODO
+        NEES = x_diff.T @ la.inv(P) @ x_diff # TODO
         return NEES
 
     def gate(self,
@@ -198,8 +198,11 @@ class EKF:
         v, S = self.innovation(z, ekfstate, sensor_state=sensor_state)
 
         # TODO: log likelihood, Hint: log(N(v, S))) -> NIS, la.slogdet.
-        NIS = self.NIS(z, ekfstate)
-        ll = -0.5 * (NIS + la.slogdet(2 * math.pi * S))
+        cholS = la.cholesky(S, lower=True)
+        invcholS_v = la.solve_triangular(cholS, v, lower=True)
+        NISby2 = (invcholS_v ** 2).sum() / 2
+        logdetSby2 = np.log(cholS)
+        ll = -(NISby2 + logdetSby2 + self._MLOG2PIby2)
 
         return ll
 
@@ -250,9 +253,11 @@ class EKF:
         # the predicted is good to have for evaluation purposes
         # A potential pythonic way of looping through  the data
         for k, (zk, Tsk, ssk) in enumerate(zip(Z, Ts_arr, sensor_state_seq)):
-            ekfpred_list[k] = self.predict(ekfupd, Tsk)
-            ekfupd_list[k] = self.update(zk, ekfupd, sensor_state)
-            ekfupd = self.step(zk, ekfupd, Tsk)
+            ekfpred = self.predict(ekfupd, Tsk)
+            ekfupd = self.update(zk, ekfpred, sensor_state=ssk)
+            
+            ekfpred_list[k] = ekfpred
+            ekfupd_list[k] = ekfupd
 
         return ekfpred_list, ekfupd_list
 
