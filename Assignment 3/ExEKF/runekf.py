@@ -165,9 +165,9 @@ for i, sigma_a in enumerate(sigma_a_list):
         ekf_filter = ekf.EKF(dynmod, measmod)  # TODO
 
         ekfpred_list, ekfupd_list = ekf_filter.estimate_sequence(Z, init_ekfstate, Ts)  # TODO
-        stats_array[i, j] = kf_filter.performance_stats_sequence(
+        stats_array[i, j] = ekf_filter.performance_stats_sequence(
     K, Z=Z, ekfpred_list=ekfpred_list, ekfupd_list=ekfupd_list, X_true=Xgt[:, :4],
-    norm_idxs=[[0, 1], [2, 3]], norms=[2, 2]  # TODO
+    norm_idxs=[[0, 1], [2, 3]], norms=[2, 2])  # TODO
 
 # %% calculate averages
 

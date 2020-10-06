@@ -47,24 +47,25 @@ class WhitenoiseAccelleration:
 
         x[:2] is position, x[2:4] is velocity
         """
-        return np.array(
-          [[1, 0, Ts, 0],
-          [0, 1, 0, Ts],
-          [0, 0, 1, 0],
-          [0, 0, 0, 1]]
-          ) @ x
+        x_p = x
+        x_p[:2] = Ts * x[2:]
+
+        return x_p
 
     def F(self,
             x: np.ndarray,
             Ts: float,
           ) -> np.ndarray:
         """ Calculate the transition function jacobian for Ts time units at x."""
+        F = np.eye(4)
+        F[[0, 1], [2, 3]] = Ts
+
         return np.array(
           [[1, 0, Ts, 0],
           [0, 1, 0, Ts],
           [0, 0, 1, 0],
           [0, 0, 0, 1]]
-          )
+        )
 
     def Q(self,
             x: np.ndarray,
@@ -77,12 +78,17 @@ class WhitenoiseAccelleration:
         # Hint: sigma can be found as self.sigma, see variable declarations
         # Note the @dataclass decorates this class to create an init function that takes
         # sigma as a parameter, among other things.
-        a = (Ts ** 3 / 3) * np.eye(2)
-        b = (Ts ** 2 / 2) * np.eye(2)
-        c = Ts * np.eye(2)
-        Q_matrix = np.concatenate(
-          (np.concatenate((a, b), 0),
-          np.concatenate((b, c), 0)),
-          1
-        )
-        return self.sigma * Q_matrix
+        Q = np.zeros((4, 4))
+
+        pos_idx = [0, 1]
+        vel_idx = [2, 3]
+
+        sigma2 = self.sigma**2
+
+        Q[pos_idx, pos_idx] = sigma2 * Ts**3 / 3
+        Q[vel_idx, vel_idx] = sigma2 * Ts
+
+        Q[pos_idx, vel_idx] = sigma2 * Ts**2 / 2
+        Q[pos_idx, vel_idx] = sigma2 * Ts**2 / 2
+
+        return Q
