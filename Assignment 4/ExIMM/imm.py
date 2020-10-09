@@ -22,7 +22,6 @@ from estimatorduck import StateEstimator
 
 # packages
 from dataclasses import dataclass
-from singledispatchmethod import singledispatchmethod
 import numpy as np
 from scipy import linalg
 from scipy.special import logsumexp
@@ -30,7 +29,6 @@ from scipy.special import logsumexp
 # local
 import discretebayes
 import ekf
-import ekf_init_filter_state
 
 # %% TypeVar and aliases
 MT = TypeVar("MT")  # a type variable to be the mode type
@@ -88,7 +86,8 @@ class IMM(Generic[MT]):
     ) -> List[MT]:
 
         mixed_states = [
-            fs.reduce_mixture()
+            fs.reduce_mixture(MixtureParameters(mix_pr_s, immstate.components))
+            for fs, mix_pr_s in zip(self.filters, mix_probabilities)
         ] # TODO
         return mixed_states
 
@@ -98,7 +97,9 @@ class IMM(Generic[MT]):
         # The sampling time
         Ts: float,
     ) -> List[MT]:
-        modestates_pred = # TODO
+        modestates_pred = [
+            fs.predict(cs, Ts) for fs, cs in zip(self.filters, mode_states)
+        ] # TODO
         return modestates_pred
 
     def predict(
@@ -115,11 +116,11 @@ class IMM(Generic[MT]):
         """
 
         # TODO: proposed structure
-        predicted_mode_probability, mixing_probability = # TODO
+        predicted_mode_probability, mixing_probability = self.mix_probabilities(immstate, Ts) # TODO
 
-        mixed_mode_states: List[MT] = # TODO
+        mixed_mode_states: List[MT] = self.mix_states(immstate, mixing_probability) # TODO
 
-        predicted_mode_states = # TODO
+        predicted_mode_states = self.mode_matched_prediction(mixed_mode_states, Ts) # TODO
 
         predicted_immstate = MixtureParameters(
             predicted_mode_probability, predicted_mode_states
@@ -134,7 +135,10 @@ class IMM(Generic[MT]):
     ) -> List[MT]:
         """Update each mode in immstate with z in sensor_state."""
 
-        updated_state = # TODO
+        updated_state = [
+            fs.update(z, cs, sensor_state=sensor_state)
+            for fs, cs in zip(self.filters, immstate.components)
+        ] # TODO
 
         return updated_state
 
@@ -146,11 +150,16 @@ class IMM(Generic[MT]):
     ) -> np.ndarray:
         """Calculate the mode probabilities in immstate updated with z in sensor_state"""
 
-        mode_loglikelihood =  # TODO
+        mode_loglikelihood = np.array(
+            [
+                fs.loglikelihood(z, cs)
+                for fs, cs in zip(self.filters, immstate.components)
+            ]
+        ) # TODO
 
-        # potential intermediate step logjoint =
+        logjoint = mode_loglikelihood + np.log(immstate.weights)
 
-        updated_mode_probabilities = # TODO
+        updated_mode_probabilities = np.exp(logjoint - logsumexp(logjoint)) # TODO
 
         # Optional debuging
         assert np.all(np.isfinite(updated_mode_probabilities))
@@ -166,8 +175,12 @@ class IMM(Generic[MT]):
     ) -> MixtureParameters[MT]:
         """Update the immstate with z in sensor_state."""
 
-        updated_weights = # TODO
-        updated_states = # TODO
+        updated_weights = self.update_mode_probabilities(
+            z, immstate, sensor_state=sensor_state
+        ) # TODO
+        updated_states = self.mode_matched_update(
+            z, immstate, sensor_state=sensor_state
+        ) # TODO
 
         updated_immstate = MixtureParameters(updated_weights, updated_states)
         return updated_immstate
@@ -181,8 +194,8 @@ class IMM(Generic[MT]):
     ) -> MixtureParameters[MT]:
         """Predict immstate with Ts time units followed by updating it with z in sensor_state"""
 
-        predicted_immstate = None # TODO
-        updated_immstate = None # TODO
+        predicted_immstate = self.predict(immstate, Ts) # TODO
+        updated_immstate = self.update(z, updated_immstate, sensor_state=sensor_state) # TODO
 
         return updated_immstate
 
@@ -228,8 +241,8 @@ class IMM(Generic[MT]):
 
         # ! You can assume all the modes have the same reduce and estimate function
         # ! and use eg. self.filters[0] functionality
-        data_reduced = # TODO
-        estimate = # TODO
+        data_reduced = self.filters[0].reduce_mixture(immstate) # TODO
+        estimate = self.filters[0].estimate(data_reduced) # TODO
         return estimate
 
     def gate(
@@ -290,102 +303,6 @@ class IMM(Generic[MT]):
 
         NEES = self.filters[0].NEES(est, x_true, idx=idx)  # HACK?
         return NEES, NEESes
-
-    @singledispatchmethod
-    def init_filter_state(
-        self,
-        init,  # Union[
-        #     MixtureParameters, Dict[str, Any], Tuple[Sequence, Sequence], Sequence
-        # ],
-    ) -> MixtureParameters:
-        """
-        Initialize the imm state to MixtureParameters.
-
-        - If mode probabilities are not found they are initialized from self.initial_mode_probabilities.
-        - If only one mode state is found, it is broadcasted to all modes.
-
-        MixtureParameters: goes unaltered
-        dict:
-            ["weights", "probs", "probabilities", "mode_probs"]
-                in this order can signify mode probabilities
-            ["components", "modes"] signify the modes
-        tuple: first element is mode probabilities and second is mode states
-        Sequence: assumed to be only the mode states
-
-        mode probabilities: array_like
-        components:
-
-        """  # TODO there are cases where MP unaltered can lead to trouble
-
-        raise NotImplementedError(
-            f"IMM do not know how to initialize a immstate from: {init}"
-        )
-
-    @init_filter_state.register
-    def _(self, init: MixtureParameters[MT]) -> MixtureParameters[MT]:
-        return init
-
-    @init_filter_state.register(dict)
-    def _(self, init: dict) -> MixtureParameters[MT]:
-        # extract weights
-        got_weights = False
-        got_components = False
-        for key in init:
-            if not got_weights and key in [
-                "weights",
-                "probs",
-                "probabilities",
-                "mode_probs",
-            ]:
-                weights = np.asfarray([key])
-                got_weights = True
-            elif not got_components and key in ["components", "modes"]:
-                components = self.init_components(init[key])
-                got_components = True
-
-        if not got_weights:
-            weights = self.initial_mode_probabilities
-
-        if not got_components:
-            components = self.init_components(init)
-
-        assert np.allclose(weights.sum(), 1), "Mode probabilities must sum to 1 for"
-
-        return MixtureParameters(weights, components)
-
-    @init_filter_state.register(tuple)
-    def _(self, init: tuple) -> MixtureParameters[MT]:
-        assert isinstance(init[0], Sized) and len(init[0]) == len(
-            self.filters
-        ), f"To initialize from tuple the first element must be of len(self.filters)={len(self.filters)}"
-
-        weights = np.asfarray(init[0])
-        components = self.init_compontents(init[1])
-        return MixtureParameters(weights, components)
-
-    @init_filter_state.register(Sequence)
-    def _(self, init: Sequence) -> MixtureParameters[MT]:
-        weights = self.initial_mode_probabilities
-        components = self.init_components(init)
-        return MixtureParameters(weights, components)
-
-    @singledispatchmethod
-    def init_components(self, init: "Union[Iterable, MT_like]") -> List[MT]:
-        """ Make an instance or Iterable of the Mode Parameters into a list of mode parameters"""
-        return [fs.init_filter_state(init) for fs in self.filters]
-
-    @init_components.register(dict)
-    def _(self, init: dict):
-        return [fs.init_filter_state(init) for fs in self.filters]
-
-    @init_components.register(Iterable)
-    def _(self, init: Iterable) -> List[MT]:
-        if isinstance(init[0], (np.ndarray, list)):
-            return [
-                fs.init_filter_state(init_s) for fs, init_s in zip(self.filters, init)
-            ]
-        else:
-            return [fs.init_filter_state(init) for fs in self.filters]
 
     def estimate_sequence(
         self,

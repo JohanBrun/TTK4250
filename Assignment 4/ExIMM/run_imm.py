@@ -198,8 +198,8 @@ axs3[2].set_title("vel error")
 
 # %% tune IMM by only looking at the measurements
 sigma_z = 3
-sigma_a_CV = 0.2
-sigma_a_CT = 0.1
+sigma_a_CV = 0.22
+sigma_a_CT = 0.07
 sigma_omega = 0.002 * np.pi
 PI = np.array([[0.95, 0.05], [0.05, 0.95]])
 assert np.allclose(PI.sum(axis=1), 1), "rows of PI must sum to 1"
@@ -264,6 +264,8 @@ for ci, cilbl in zip(CINIS, CI_LABELS):
     axs4[1, 1].plot([1, K * Ts], np.ones(2) * ci, "--r", label=cilbl)
 axs4[1, 1].text(K * Ts * 1.1, 1, f"{ratio_in_CI} inside CI", rotation=90)
 axs4[1, 1].legend()
+
+plt.show()
 
 # %% tune IMM by looking at ground truth
 sigma_z = 3
