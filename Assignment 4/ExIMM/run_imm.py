@@ -80,10 +80,10 @@ ax1.scatter(*Z.T[:2])
 # %% tune single filters
 
 # parameters
-sigma_z = 3
-sigma_a_CV = 0.3
-sigma_a_CT = 0.1
-sigma_omega = 0.002 * np.pi
+sigma_z = 2.25
+sigma_a_CV = 0.22
+sigma_a_CT = 0.07
+sigma_omega = 0.0016 * np.pi
 
 # initial values
 init_mean = np.array([0, 0, 2, 0, 0])
@@ -198,8 +198,8 @@ axs3[2].set_title("vel error")
 
 # %% tune IMM by only looking at the measurements
 sigma_z = 3
-sigma_a_CV = 0.22
-sigma_a_CT = 0.07
+sigma_a_CV = 0.2
+sigma_a_CT = 0.1
 sigma_omega = 0.002 * np.pi
 PI = np.array([[0.95, 0.05], [0.05, 0.95]])
 assert np.allclose(PI.sum(axis=1), 1), "rows of PI must sum to 1"
