@@ -102,13 +102,15 @@ for k, Zk in enumerate(Z):
     fig2.canvas.draw_idle()
     plt.show(block=False)
     plt.pause(plotpause)
-# %%
-sigma_a = # TODO
-sigma_z = # TODO
 
-PD = # TODO
-clutter_intensity = # TODO
-gate_size = # TODO
+plt.show()
+# %%
+sigma_a = 2 # TODO
+sigma_z = 2 # TODO
+
+PD = 0.8 # TODO
+clutter_intensity = 1e-3 # TODO
+gate_size = 5 # TODO
 
 dynamic_model = dynamicmodels.WhitenoiseAccelleration(sigma_a)
 measurement_model = measurementmodels.CartesianPosition(sigma_z)
@@ -135,10 +137,10 @@ tracker_update_list = []
 tracker_predict_list = []
 # estimate
 for k, (Zk, x_true_k) in enumerate(zip(Z, Xgt)):
-    tracker_predict = # TODO
-    tracker_update = # TODO
-    NEES[k] = # TODO
-    NEESpos[k] = # TODO
+    tracker_predict = tracker.predict(tracker_update, Ts) # TODO
+    tracker_update = tracker.update(Zk, tracker_predict) # TODO
+    NEES[k] = tracker.state_filter.NEES(tracker_update, x_true_k, idx=np.arange(4)) # TODO
+    NEESpos[k] =  # TODO
     NEESvel[k] = # TODO
 
     tracker_predict_list.append(tracker_predict)
